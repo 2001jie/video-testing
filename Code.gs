@@ -634,3 +634,100 @@ function getUpdates() {
     return [];
   }
 }
+
+/**
+ * 完全重置Webhook系统
+ */
+function completeWebhookReset() {
+  console.log('🔄 开始完全重置Webhook系统');
+  console.log('='.repeat(50));
+  
+  try {
+    // 步骤1：删除现有Webhook
+    console.log('\n1️⃣ 删除现有Webhook');
+    const deleteResult = deleteWebhook();
+    console.log('删除结果:', deleteResult);
+    
+    // 步骤2：等待清理
+    console.log('\n2️⃣ 等待清理完成...');
+    Utilities.sleep(5000);
+    
+    // 步骤3：检查清理状态
+    console.log('\n3️⃣ 检查清理状态');
+    try {
+      const webhookInfo = testWebhookStatus();
+    } catch (error) {
+      console.log('预期错误（Webhook已删除）:', error.message);
+    }
+    
+    // 步骤4：测试Web应用
+    console.log('\n4️⃣ 测试Web应用访问');
+    const webAppOk = testWebAppAccess();
+    
+    if (!webAppOk) {
+      console.log('❌ Web应用访问失败！');
+      console.log('🔧 请执行以下步骤：');
+      console.log('1. 在Google Apps Script中点击"部署" → "管理部署"');
+      console.log('2. 点击现有部署的"编辑"按钮');
+      console.log('3. 选择"新版本"');
+      console.log('4. 确保"具有访问权限的用户"设置为"任何人"');
+      console.log('5. 点击"部署"');
+      console.log('6. 如果得到新URL，请更新代码中的URL');
+      console.log('7. 重新运行此函数');
+      return false;
+    }
+    
+    // 步骤5：重新设置Webhook
+    console.log('\n5️⃣ 重新设置Webhook');
+    const setResult = setWebhook();
+    
+    // 步骤6：最终验证
+    console.log('\n6️⃣ 最终验证');
+    Utilities.sleep(3000);
+    const finalStatus = testWebhookStatus();
+    
+    console.log('\n' + '='.repeat(50));
+    console.log('🎯 重置完成！');
+    
+    return true;
+    
+  } catch (error) {
+    console.error('💥 重置过程中发生错误:', error);
+    return false;
+  }
+}
+
+/**
+ * 检查当前部署状态
+ */
+function checkDeploymentStatus() {
+  console.log('🔍 检查部署状态');
+  
+  // 测试Web应用响应
+  console.log('\n📊 Web应用测试:');
+  const webAppOk = testWebAppAccess();
+  
+  // 测试Bot连接
+  console.log('\n🤖 Bot连接测试:');
+  const botOk = testBot();
+  
+  // 检查Webhook状态
+  console.log('\n🔗 Webhook状态:');
+  const webhookOk = testWebhookStatus();
+  
+  console.log('\n' + '='.repeat(30));
+  console.log('📋 状态总结:');
+  console.log('Web应用:', webAppOk ? '✅ 正常' : '❌ 异常');
+  console.log('Bot连接:', botOk ? '✅ 正常' : '❌ 异常');
+  console.log('Webhook:', '⚠️ 需要检查');
+  
+  if (!webAppOk) {
+    console.log('\n🚨 Web应用有问题，需要重新部署！');
+    console.log('请按照以下步骤操作：');
+    console.log('1. 部署 → 管理部署 → 编辑');
+    console.log('2. 新版本 + 任何人权限');
+    console.log('3. 部署并获取新URL（如果有）');
+  }
+  
+  return webAppOk && botOk;
+}
