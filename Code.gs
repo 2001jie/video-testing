@@ -731,3 +731,158 @@ function checkDeploymentStatus() {
   
   return webAppOk && botOk;
 }
+
+/**
+ * 模拟Telegram发送POST请求到Web应用
+ */
+function testPostRequest() {
+  console.log('📮 测试POST请求（模拟Telegram）');
+  
+  const webAppUrl = 'https://script.google.com/macros/s/AKfycbwGYTlUETIJrPFKBUTAnnIY_OXh6hhlsVQUWSoq4PphxuQkoOQgihdSoImVrZXdmChC/exec';
+  
+  // 模拟Telegram发送的数据
+  const testUpdate = {
+    update_id: 123456,
+    message: {
+      message_id: 789,
+      from: {
+        id: 123456789,
+        first_name: "测试用户",
+        username: "testuser"
+      },
+      chat: {
+        id: 123456789,
+        type: "private"
+      },
+      date: Math.floor(Date.now() / 1000),
+      text: "/start"
+    }
+  };
+  
+  try {
+    console.log('🔗 测试URL:', webAppUrl);
+    console.log('📤 发送POST数据:', JSON.stringify(testUpdate, null, 2));
+    
+    const response = UrlFetchApp.fetch(webAppUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'TelegramBot (like TwitterBot)'
+      },
+      payload: JSON.stringify(testUpdate),
+      muteHttpExceptions: true
+    });
+    
+    const responseCode = response.getResponseCode();
+    const responseText = response.getContentText();
+    const headers = response.getAllHeaders();
+    
+    console.log('📊 POST响应代码:', responseCode);
+    console.log('📝 POST响应内容:', responseText);
+    console.log('📋 响应头:', JSON.stringify(headers, null, 2));
+    
+    if (responseCode === 200 && responseText === 'OK') {
+      console.log('✅ POST请求测试成功');
+      return true;
+    } else if (responseCode === 302) {
+      console.log('❌ POST请求返回302重定向');
+      console.log('🔍 Location头:', headers.Location || '未设置');
+      return false;
+    } else {
+      console.log('⚠️ POST请求异常响应');
+      return false;
+    }
+    
+  } catch (error) {
+    console.error('💥 POST请求测试错误:', error);
+    return false;
+  }
+}
+
+/**
+ * 强制清理Telegram缓存
+ */
+function forceClearTelegramCache() {
+  console.log('🧹 强制清理Telegram缓存');
+  
+  try {
+    // 方法1：删除Webhook并等待更长时间
+    console.log('1️⃣ 删除Webhook');
+    deleteWebhook();
+    
+    console.log('2️⃣ 等待10秒让Telegram清理缓存...');
+    Utilities.sleep(10000);
+    
+    // 方法2：设置一个临时的无效URL，然后再设置正确的URL
+    console.log('3️⃣ 设置临时无效URL清理缓存');
+    const tempUrl = 'https://httpbin.org/status/200';
+    
+    const tempResult = UrlFetchApp.fetch(`${TELEGRAM_API_URL}/setWebhook`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      payload: JSON.stringify({ url: tempUrl })
+    });
+    
+    console.log('临时Webhook设置:', JSON.parse(tempResult.getContentText()));
+    
+    console.log('4️⃣ 等待5秒...');
+    Utilities.sleep(5000);
+    
+    // 方法3：删除临时Webhook
+    console.log('5️⃣ 删除临时Webhook');
+    deleteWebhook();
+    
+    console.log('6️⃣ 最后等待5秒...');
+    Utilities.sleep(5000);
+    
+    // 方法4：设置正确的Webhook
+    console.log('7️⃣ 设置正确的Webhook');
+    setWebhook();
+    
+    console.log('✅ 缓存清理完成');
+    
+  } catch (error) {
+    console.error('💥 清理缓存时发生错误:', error);
+  }
+}
+
+/**
+ * 完整的问题诊断和修复
+ */
+function ultimateDiagnosis() {
+  console.log('🔬 终极诊断开始');
+  console.log('='.repeat(60));
+  
+  // 1. 测试GET请求
+  console.log('\n1️⃣ 测试GET请求');
+  const getOk = testWebAppAccess();
+  
+  // 2. 测试POST请求
+  console.log('\n2️⃣ 测试POST请求');
+  const postOk = testPostRequest();
+  
+  // 3. 检查当前Webhook状态
+  console.log('\n3️⃣ 检查Webhook状态');
+  testWebhookStatus();
+  
+  console.log('\n' + '='.repeat(60));
+  console.log('📊 诊断结果:');
+  console.log('GET请求:', getOk ? '✅ 正常' : '❌ 异常');
+  console.log('POST请求:', postOk ? '✅ 正常' : '❌ 异常');
+  
+  if (getOk && !postOk) {
+    console.log('\n🎯 问题分析: GET正常但POST异常');
+    console.log('这通常是权限或缓存问题');
+    console.log('\n🔧 建议操作:');
+    console.log('1. 运行 forceClearTelegramCache() 清理缓存');
+    console.log('2. 或者重新部署Web应用获取新URL');
+  } else if (!getOk && !postOk) {
+    console.log('\n🎯 问题分析: GET和POST都异常');
+    console.log('需要重新部署Web应用');
+  } else if (getOk && postOk) {
+    console.log('\n🎯 问题分析: 请求都正常，可能是Telegram缓存问题');
+    console.log('建议运行 forceClearTelegramCache()');
+  }
+  
+  return { getOk, postOk };
+}
