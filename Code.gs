@@ -529,3 +529,82 @@ function diagnoseWebhookIssue() {
   
   return doPostOk && webAppOk;
 }
+
+/**
+ * 清理所有待处理的更新
+ */
+function clearPendingUpdates() {
+  console.log('🧹 清理待处理更新');
+  
+  try {
+    // 方法1：删除Webhook，这会清理所有待处理的更新
+    console.log('1️⃣ 删除Webhook以清理待处理更新');
+    const deleteResult = deleteWebhook();
+    
+    if (deleteResult && deleteResult.ok) {
+      console.log('✅ Webhook删除成功，待处理更新已清理');
+      
+      // 等待几秒让清理生效
+      Utilities.sleep(3000);
+      
+      // 重新设置Webhook
+      console.log('2️⃣ 重新设置Webhook');
+      const setResult = setWebhook();
+      
+      if (setResult && setResult.ok) {
+        console.log('✅ Webhook重新设置成功');
+        
+        // 验证清理效果
+        Utilities.sleep(2000);
+        console.log('3️⃣ 验证清理效果');
+        testWebhookStatus();
+        
+      } else {
+        console.log('❌ Webhook重新设置失败');
+      }
+      
+    } else {
+      console.log('❌ Webhook删除失败');
+    }
+    
+  } catch (error) {
+    console.error('💥 清理待处理更新错误:', error);
+  }
+}
+
+/**
+ * 获取待处理更新（仅查看，不处理）
+ */
+function getUpdates() {
+  console.log('📥 获取待处理更新');
+  
+  try {
+    const url = `${TELEGRAM_API_URL}/getUpdates`;
+    const response = UrlFetchApp.fetch(url);
+    const result = JSON.parse(response.getContentText());
+    
+    if (result.ok) {
+      console.log('📊 待处理更新数量:', result.result.length);
+      
+      if (result.result.length > 0) {
+        console.log('📋 最新更新:');
+        result.result.slice(-3).forEach((update, index) => {
+          console.log(`${index + 1}. Update ID: ${update.update_id}`);
+          if (update.message) {
+            console.log(`   消息: ${update.message.text || '(非文本)'}`);
+            console.log(`   用户: ${update.message.from.first_name}`);
+          }
+        });
+      }
+      
+      return result.result;
+    } else {
+      console.log('❌ 获取更新失败:', result);
+      return [];
+    }
+    
+  } catch (error) {
+    console.error('💥 获取更新错误:', error);
+    return [];
+  }
+}
