@@ -53,6 +53,32 @@ function doPost(e) {
 }
 
 /**
+ * 处理 GET 请求（用于测试Web应用是否正常）
+ */
+function doGet(e) {
+  console.log('📥 收到 GET 请求');
+  
+  try {
+    // 验证配置
+    if (!validateConfig()) {
+      return ContentService.createTextOutput('Config Error').setMimeType(ContentService.MimeType.TEXT);
+    }
+    
+    const response = `✅ Telegram Bot Web应用运行正常
+时间: ${new Date().toLocaleString('zh-CN')}
+Bot: @${getConfig().BOT_TOKEN.split(':')[0] || 'unknown'}
+状态: 准备接收消息`;
+    
+    console.log('✅ GET请求处理成功');
+    return ContentService.createTextOutput(response).setMimeType(ContentService.MimeType.TEXT);
+    
+  } catch (error) {
+    console.error('💥 处理GET请求错误:', error);
+    return ContentService.createTextOutput('Error: ' + error.message).setMimeType(ContentService.MimeType.TEXT);
+  }
+}
+
+/**
  * 处理单条消息
  */
 function processMessage(message) {
