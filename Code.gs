@@ -4,17 +4,30 @@
  */
 function doPost(e) {
   try {
+    console.log('=== 收到Webhook请求 ===');
+    console.log('请求数据:', e.postData ? e.postData.contents : '无数据');
+    
+    if (!e.postData || !e.postData.contents) {
+      console.error('未收到POST数据');
+      return ContentService.createTextOutput('No data');
+    }
+    
     const update = JSON.parse(e.postData.contents);
+    console.log('解析后的更新:', JSON.stringify(update, null, 2));
     
     // 处理消息
     if (update.message) {
+      console.log('开始处理消息...');
       handleMessage(update.message);
+    } else {
+      console.log('更新中没有消息内容');
     }
     
     return ContentService.createTextOutput('OK');
   } catch (error) {
     console.error('处理Webhook时发生错误:', error);
-    return ContentService.createTextOutput('Error');
+    console.error('错误堆栈:', error.stack);
+    return ContentService.createTextOutput('Error: ' + error.message);
   }
 }
 
@@ -46,26 +59,44 @@ function handleMessage(message) {
  */
 function handleRequestCommand(chatId, userId, userName, text) {
   try {
+    console.log('=== 开始处理/request命令 ===');
+    console.log('chatId:', chatId);
+    console.log('userId:', userId);
+    console.log('userName:', userName);
+    console.log('text:', text);
+    
     // 提取TMDB链接
     const tmdbUrl = text.replace('/request ', '').trim();
+    console.log('提取的TMDB链接:', tmdbUrl);
     
     // 验证和解析TMDB链接
     const tmdbId = parseTmdbUrl(tmdbUrl);
+    console.log('解析的TMDB ID:', tmdbId);
+    
     if (!tmdbId) {
+      console.log('TMDB链接解析失败，发送错误消息');
       sendMessage(chatId, getConfig().MESSAGES.INVALID_URL);
       return;
     }
     
     // 获取电影信息
+    console.log('开始获取电影信息...');
     const movieInfo = getMovieInfo(tmdbId);
+    console.log('获取的电影信息:', movieInfo);
+    
     if (!movieInfo) {
+      console.log('电影信息获取失败，发送错误消息');
       sendMessage(chatId, getConfig().MESSAGES.MOVIE_NOT_FOUND);
       return;
     }
     
     // 检查是否已存在相同的请求
+    console.log('检查是否存在重复请求...');
     const existingRequest = findExistingRequest(tmdbId);
+    console.log('现有请求检查结果:', existingRequest);
+    
     if (existingRequest) {
+      console.log('发现重复请求，发送提醒消息');
       // 发送重复请求提醒
       const message = getConfig().MESSAGES.DUPLICATE_REQUEST
         .replace('{title}', movieInfo.title)
@@ -78,21 +109,27 @@ function handleRequestCommand(chatId, userId, userName, text) {
     }
     
     // 保存新请求
+    console.log('保存新请求到Google Sheets...');
     const requestId = saveRequest(tmdbId, movieInfo, tmdbUrl, userId, userName);
+    console.log('请求保存成功，ID:', requestId);
     
     // 发送成功消息
+    console.log('发送成功确认消息...');
     const message = getConfig().MESSAGES.REQUEST_SUCCESS
       .replace('{title}', movieInfo.title)
       .replace('{year}', movieInfo.year)
       .replace('{time}', new Date().toLocaleString('zh-CN'))
       .replace('{status}', getConfig().STATUS.PENDING);
     
-    sendMessage(chatId, message);
+    const sendResult = sendMessage(chatId, message);
+    console.log('消息发送结果:', sendResult);
     
     console.log(`新请求已保存: ${movieInfo.title} 由用户 ${userName} 申请`);
+    console.log('=== /request命令处理完成 ===');
     
   } catch (error) {
     console.error('处理请求命令时发生错误:', error);
+    console.error('错误堆栈:', error.stack);
     sendMessage(chatId, getConfig().MESSAGES.ERROR);
   }
 }
