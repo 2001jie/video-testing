@@ -1,143 +1,171 @@
 /**
- * Telegram Bot 主处理函数
- * 处理来自Telegram的Webhook请求
+ * 重写版本 - Telegram Bot 主处理代码
+ * 简化逻辑，增加详细日志，确保可靠性
+ */
+
+/**
+ * 处理 Telegram Webhook 请求
  */
 function doPost(e) {
+  console.log('🚀 收到 Webhook 请求，时间:', new Date().toLocaleString('zh-CN'));
+  
   try {
-    console.log('=== 收到Webhook请求 ===');
-    console.log('请求数据:', e.postData ? e.postData.contents : '无数据');
-    
-    if (!e.postData || !e.postData.contents) {
-      console.error('未收到POST数据');
-      return ContentService.createTextOutput('No data');
+    // 验证配置
+    if (!validateConfig()) {
+      console.error('❌ 配置验证失败');
+      return ContentService.createTextOutput('Config Error');
     }
     
-    const update = JSON.parse(e.postData.contents);
-    console.log('解析后的更新:', JSON.stringify(update, null, 2));
+    // 检查请求数据
+    if (!e || !e.postData || !e.postData.contents) {
+      console.error('❌ 无效的请求数据');
+      return ContentService.createTextOutput('No Data');
+    }
+    
+    console.log('📥 原始请求数据:', e.postData.contents);
+    
+    // 解析 JSON
+    let update;
+    try {
+      update = JSON.parse(e.postData.contents);
+    } catch (parseError) {
+      console.error('❌ JSON 解析失败:', parseError);
+      return ContentService.createTextOutput('Parse Error');
+    }
+    
+    console.log('📋 解析后的更新:', JSON.stringify(update, null, 2));
     
     // 处理消息
-    if (update.message) {
-      console.log('开始处理消息...');
-      handleMessage(update.message);
+    if (update.message && update.message.text) {
+      console.log('💬 开始处理消息');
+      processMessage(update.message);
     } else {
-      console.log('更新中没有消息内容');
+      console.log('ℹ️ 非文本消息，忽略');
     }
     
     return ContentService.createTextOutput('OK');
+    
   } catch (error) {
-    console.error('处理Webhook时发生错误:', error);
-    console.error('错误堆栈:', error.stack);
+    console.error('💥 doPost 处理错误:', error);
+    console.error('📍 错误堆栈:', error.stack);
     return ContentService.createTextOutput('Error: ' + error.message);
   }
 }
 
 /**
- * 处理Telegram消息
+ * 处理单条消息
  */
-function handleMessage(message) {
+function processMessage(message) {
+  console.log('🔄 处理消息开始');
+  
   const chatId = message.chat.id;
   const userId = message.from.id;
   const userName = message.from.first_name || '未知用户';
-  const text = message.text || '';
+  const text = message.text.trim();
   
-  console.log(`收到消息: ${text} 来自用户: ${userName} (${userId})`);
+  console.log(`👤 用户信息: ${userName} (${userId})`);
+  console.log(`💬 消息内容: "${text}"`);
+  console.log(`🗨️ 聊天ID: ${chatId}`);
   
-  // 处理命令
-  if (text.startsWith('/start')) {
-    sendMessage(chatId, getConfig().MESSAGES.HELP);
-  } else if (text.startsWith('/request ')) {
-    handleRequestCommand(chatId, userId, userName, text);
-  } else if (text === '/request') {
-    sendMessage(chatId, getConfig().MESSAGES.INVALID_URL);
-  } else {
-    sendMessage(chatId, getConfig().MESSAGES.HELP);
-  }
-}
-
-/**
- * 处理/request命令
- */
-function handleRequestCommand(chatId, userId, userName, text) {
   try {
-    console.log('=== 开始处理/request命令 ===');
-    console.log('chatId:', chatId);
-    console.log('userId:', userId);
-    console.log('userName:', userName);
-    console.log('text:', text);
-    
-    // 提取TMDB链接
-    const tmdbUrl = text.replace('/request ', '').trim();
-    console.log('提取的TMDB链接:', tmdbUrl);
-    
-    // 验证和解析TMDB链接
-    const tmdbId = parseTmdbUrl(tmdbUrl);
-    console.log('解析的TMDB ID:', tmdbId);
-    
-    if (!tmdbId) {
-      console.log('TMDB链接解析失败，发送错误消息');
-      sendMessage(chatId, getConfig().MESSAGES.INVALID_URL);
-      return;
-    }
-    
-    // 获取电影信息
-    console.log('开始获取电影信息...');
-    const movieInfo = getMovieInfo(tmdbId);
-    console.log('获取的电影信息:', movieInfo);
-    
-    if (!movieInfo) {
-      console.log('电影信息获取失败，发送错误消息');
-      sendMessage(chatId, getConfig().MESSAGES.MOVIE_NOT_FOUND);
-      return;
-    }
-    
-    // 检查是否已存在相同的请求
-    console.log('检查是否存在重复请求...');
-    const existingRequest = findExistingRequest(tmdbId);
-    console.log('现有请求检查结果:', existingRequest);
-    
-    if (existingRequest) {
-      console.log('发现重复请求，发送提醒消息');
-      // 发送重复请求提醒
-      const message = getConfig().MESSAGES.DUPLICATE_REQUEST
-        .replace('{title}', movieInfo.title)
-        .replace('{originalUser}', existingRequest.userName)
-        .replace('{originalTime}', existingRequest.requestTime)
-        .replace('{status}', existingRequest.status);
+    if (text === '/start' || text === '/help') {
+      console.log('📖 处理帮助命令');
+      sendTelegramMessage(chatId, MSG_HELP);
       
-      sendMessage(chatId, message);
-      return;
+    } else if (text.startsWith('/request ')) {
+      console.log('🎬 处理电影请求命令');
+      handleMovieRequest(chatId, userId, userName, text);
+      
+    } else if (text === '/request') {
+      console.log('❌ 空的请求命令');
+      sendTelegramMessage(chatId, MSG_INVALID_URL);
+      
+    } else {
+      console.log('❓ 未知命令，显示帮助');
+      sendTelegramMessage(chatId, MSG_HELP);
     }
-    
-    // 保存新请求
-    console.log('保存新请求到Google Sheets...');
-    const requestId = saveRequest(tmdbId, movieInfo, tmdbUrl, userId, userName);
-    console.log('请求保存成功，ID:', requestId);
-    
-    // 发送成功消息
-    console.log('发送成功确认消息...');
-    const message = getConfig().MESSAGES.REQUEST_SUCCESS
-      .replace('{title}', movieInfo.title)
-      .replace('{year}', movieInfo.year)
-      .replace('{time}', new Date().toLocaleString('zh-CN'))
-      .replace('{status}', getConfig().STATUS.PENDING);
-    
-    const sendResult = sendMessage(chatId, message);
-    console.log('消息发送结果:', sendResult);
-    
-    console.log(`新请求已保存: ${movieInfo.title} 由用户 ${userName} 申请`);
-    console.log('=== /request命令处理完成 ===');
     
   } catch (error) {
-    console.error('处理请求命令时发生错误:', error);
-    console.error('错误堆栈:', error.stack);
-    sendMessage(chatId, getConfig().MESSAGES.ERROR);
+    console.error('💥 处理消息错误:', error);
+    sendTelegramMessage(chatId, MSG_ERROR);
+  }
+  
+  console.log('✅ 消息处理完成');
+}
+
+/**
+ * 处理电影请求
+ */
+function handleMovieRequest(chatId, userId, userName, text) {
+  console.log('🎯 开始处理电影请求');
+  
+  try {
+    // 提取链接
+    const url = text.replace('/request ', '').trim();
+    console.log('🔗 提取的链接:', url);
+    
+    // 解析 TMDB ID
+    const movieId = extractTmdbId(url);
+    if (!movieId) {
+      console.log('❌ 链接解析失败');
+      sendTelegramMessage(chatId, MSG_INVALID_URL);
+      return;
+    }
+    console.log('🆔 解析的电影ID:', movieId);
+    
+    // 获取电影信息
+    const movieInfo = fetchMovieInfo(movieId);
+    if (!movieInfo) {
+      console.log('❌ 电影信息获取失败');
+      sendTelegramMessage(chatId, MSG_MOVIE_NOT_FOUND);
+      return;
+    }
+    console.log('🎬 电影信息:', movieInfo.title, '(' + movieInfo.year + ')');
+    
+    // 检查重复
+    const existingRequest = checkDuplicateRequest(movieId);
+    if (existingRequest) {
+      console.log('⚠️ 发现重复请求');
+      const message = MSG_DUPLICATE
+        .replace('{title}', movieInfo.title)
+        .replace('{user}', existingRequest.userName)
+        .replace('{time}', existingRequest.requestTime)
+        .replace('{status}', existingRequest.status);
+      
+      sendTelegramMessage(chatId, message);
+      return;
+    }
+    
+    // 保存请求
+    const saved = saveMovieRequest(movieId, movieInfo, url, userId, userName);
+    if (!saved) {
+      console.log('❌ 保存请求失败');
+      sendTelegramMessage(chatId, MSG_ERROR);
+      return;
+    }
+    
+    // 发送成功消息
+    const successMessage = MSG_SUCCESS
+      .replace('{title}', movieInfo.title)
+      .replace('{year}', movieInfo.year)
+      .replace('{time}', new Date().toLocaleString('zh-CN'));
+    
+    sendTelegramMessage(chatId, successMessage);
+    console.log('✅ 电影请求处理完成');
+    
+  } catch (error) {
+    console.error('💥 处理电影请求错误:', error);
+    sendTelegramMessage(chatId, MSG_ERROR);
   }
 }
 
 /**
- * 发送Telegram消息
+ * 发送 Telegram 消息
  */
-function sendMessage(chatId, text) {
+function sendTelegramMessage(chatId, text) {
+  console.log('📤 发送消息到:', chatId);
+  console.log('📝 消息内容:', text.substring(0, 100) + '...');
+  
   try {
     const url = `${TELEGRAM_API_URL}/sendMessage`;
     const payload = {
@@ -148,69 +176,144 @@ function sendMessage(chatId, text) {
     
     const options = {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers: { 'Content-Type': 'application/json' },
       payload: JSON.stringify(payload)
     };
     
     const response = UrlFetchApp.fetch(url, options);
     const result = JSON.parse(response.getContentText());
     
-    if (!result.ok) {
-      console.error('发送消息失败:', result);
+    if (result.ok) {
+      console.log('✅ 消息发送成功');
+      return true;
+    } else {
+      console.error('❌ 消息发送失败:', result);
+      return false;
     }
     
-    return result.ok;
   } catch (error) {
-    console.error('发送消息时发生错误:', error);
+    console.error('💥 发送消息错误:', error);
     return false;
   }
 }
 
 /**
- * 设置Webhook (手动运行此函数来设置Webhook)
+ * 提取 TMDB 电影 ID
  */
-function setWebhook() {
-  const webAppUrl = 'YOUR_WEB_APP_URL_HERE'; // 替换为您的Web应用URL
-  const url = `${TELEGRAM_API_URL}/setWebhook`;
+function extractTmdbId(url) {
+  console.log('🔍 解析 TMDB 链接:', url);
   
-  const payload = {
-    url: webAppUrl
-  };
+  if (!url) return null;
   
-  const options = {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    payload: JSON.stringify(payload)
-  };
+  // 支持的格式
+  const patterns = [
+    /(?:https?:\/\/)?(?:www\.)?themoviedb\.org\/movie\/(\d+)/i,
+    /tmdb\.org\/movie\/(\d+)/i
+  ];
+  
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match && match[1]) {
+      console.log('✅ 成功解析 ID:', match[1]);
+      return match[1];
+    }
+  }
+  
+  console.log('❌ 无法解析链接');
+  return null;
+}
+
+/**
+ * 获取电影信息
+ */
+function fetchMovieInfo(movieId) {
+  console.log('🎬 获取电影信息:', movieId);
   
   try {
-    const response = UrlFetchApp.fetch(url, options);
-    const result = JSON.parse(response.getContentText());
-    console.log('Webhook设置结果:', result);
-    return result;
+    const url = `${TMDB_API_URL}/movie/${movieId}?api_key=${TMDB_API_KEY}&language=zh-CN`;
+    console.log('🌐 请求 URL:', url.replace(TMDB_API_KEY, '***'));
+    
+    const response = UrlFetchApp.fetch(url);
+    
+    if (response.getResponseCode() !== 200) {
+      console.error('❌ TMDB API 请求失败:', response.getResponseCode());
+      return null;
+    }
+    
+    const data = JSON.parse(response.getContentText());
+    
+    const movieInfo = {
+      id: data.id,
+      title: data.title || data.original_title,
+      year: data.release_date ? new Date(data.release_date).getFullYear() : '未知',
+      overview: data.overview || ''
+    };
+    
+    console.log('✅ 电影信息获取成功:', movieInfo.title);
+    return movieInfo;
+    
   } catch (error) {
-    console.error('设置Webhook时发生错误:', error);
+    console.error('💥 获取电影信息错误:', error);
     return null;
   }
 }
 
 /**
- * 测试函数 - 检查Bot状态
+ * 设置 Webhook
  */
-function testBot() {
-  const url = `${TELEGRAM_API_URL}/getMe`;
+function setWebhook() {
+  const webAppUrl = 'YOUR_WEB_APP_URL_HERE'; // 需要替换为实际的 Web 应用 URL
+  
+  if (webAppUrl === 'YOUR_WEB_APP_URL_HERE') {
+    console.error('❌ 请先设置 Web 应用 URL');
+    return;
+  }
+  
+  console.log('🔗 设置 Webhook:', webAppUrl);
   
   try {
+    const url = `${TELEGRAM_API_URL}/setWebhook`;
+    const payload = { url: webAppUrl };
+    
+    const options = {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      payload: JSON.stringify(payload)
+    };
+    
+    const response = UrlFetchApp.fetch(url, options);
+    const result = JSON.parse(response.getContentText());
+    
+    console.log('📋 Webhook 设置结果:', result);
+    return result;
+    
+  } catch (error) {
+    console.error('💥 设置 Webhook 错误:', error);
+    return null;
+  }
+}
+
+/**
+ * 测试 Bot 连接
+ */
+function testBot() {
+  console.log('🧪 测试 Bot 连接');
+  
+  try {
+    const url = `${TELEGRAM_API_URL}/getMe`;
     const response = UrlFetchApp.fetch(url);
     const result = JSON.parse(response.getContentText());
-    console.log('Bot信息:', result);
+    
+    if (result.ok) {
+      console.log('✅ Bot 连接正常:', result.result.username);
+    } else {
+      console.log('❌ Bot 连接失败:', result);
+    }
+    
     return result;
+    
   } catch (error) {
-    console.error('测试Bot时发生错误:', error);
+    console.error('💥 测试 Bot 错误:', error);
     return null;
   }
 }
