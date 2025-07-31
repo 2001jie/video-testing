@@ -297,9 +297,8 @@ function setWebhook() {
       
       // 立即验证Webhook状态
       console.log('\n🔍 验证Webhook状态...');
-      setTimeout(() => {
-        testWebhookStatus();
-      }, 2000);
+      Utilities.sleep(2000);
+      testWebhookStatus();
       
     } else {
       console.log('❌ Webhook 设置失败');
