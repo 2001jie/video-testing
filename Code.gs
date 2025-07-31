@@ -396,3 +396,136 @@ function testBot() {
     return null;
   }
 }
+
+/**
+ * 测试Web应用是否可以正常访问
+ */
+function testWebAppAccess() {
+  console.log('🌐 测试Web应用访问');
+  
+  const webAppUrl = 'YOUR_WEB_APP_URL_HERE'; // 替换为您的Web应用URL
+  
+  if (webAppUrl === 'YOUR_WEB_APP_URL_HERE') {
+    console.error('❌ 请先设置Web应用URL');
+    return false;
+  }
+  
+  try {
+    console.log('🔗 测试URL:', webAppUrl);
+    
+    // 模拟一个简单的GET请求
+    const response = UrlFetchApp.fetch(webAppUrl, {
+      method: 'GET',
+      muteHttpExceptions: true
+    });
+    
+    const responseCode = response.getResponseCode();
+    const responseText = response.getContentText();
+    
+    console.log('📊 响应代码:', responseCode);
+    console.log('📝 响应内容:', responseText.substring(0, 200));
+    
+    if (responseCode === 200) {
+      console.log('✅ Web应用访问正常');
+      return true;
+    } else if (responseCode === 302) {
+      console.log('❌ 发现302重定向问题');
+      console.log('🔧 请检查以下设置：');
+      console.log('1. Web应用权限是否设置为"任何人"');
+      console.log('2. 是否使用了最新的部署URL');
+      console.log('3. 是否正确部署为Web应用');
+      return false;
+    } else {
+      console.log('⚠️ 意外的响应代码:', responseCode);
+      return false;
+    }
+    
+  } catch (error) {
+    console.error('💥 测试Web应用访问错误:', error);
+    return false;
+  }
+}
+
+/**
+ * 获取正确的doPost测试函数
+ */
+function testDoPostFunction() {
+  console.log('🧪 测试doPost函数');
+  
+  // 模拟Telegram发送的数据
+  const mockPostData = {
+    postData: {
+      contents: JSON.stringify({
+        message: {
+          message_id: 123,
+          from: {
+            id: 123456789,
+            first_name: "测试用户",
+            username: "testuser"
+          },
+          chat: {
+            id: 123456789,
+            type: "private"
+          },
+          date: Math.floor(Date.now() / 1000),
+          text: "/start"
+        }
+      })
+    }
+  };
+  
+  try {
+    console.log('📥 模拟POST请求');
+    const result = doPost(mockPostData);
+    console.log('📤 doPost响应:', result.getContent());
+    
+    if (result.getContent() === 'OK') {
+      console.log('✅ doPost函数工作正常');
+      return true;
+    } else {
+      console.log('⚠️ doPost响应异常');
+      return false;
+    }
+    
+  } catch (error) {
+    console.error('💥 测试doPost错误:', error);
+    return false;
+  }
+}
+
+/**
+ * 完整的Webhook问题诊断
+ */
+function diagnoseWebhookIssue() {
+  console.log('🔍 开始Webhook问题诊断');
+  console.log('='.repeat(50));
+  
+  // 1. 测试doPost函数
+  console.log('\n1️⃣ 测试doPost函数');
+  const doPostOk = testDoPostFunction();
+  
+  // 2. 测试Web应用访问
+  console.log('\n2️⃣ 测试Web应用访问');
+  const webAppOk = testWebAppAccess();
+  
+  // 3. 检查Webhook状态
+  console.log('\n3️⃣ 检查Webhook状态');
+  const webhookInfo = testWebhookStatus();
+  
+  // 4. 总结
+  console.log('\n' + '='.repeat(50));
+  console.log('📊 诊断结果:');
+  console.log('doPost函数:', doPostOk ? '✅ 正常' : '❌ 异常');
+  console.log('Web应用访问:', webAppOk ? '✅ 正常' : '❌ 异常');
+  console.log('Webhook状态:', webhookInfo ? '✅ 设置' : '❌ 未设置');
+  
+  if (!webAppOk) {
+    console.log('\n🎯 建议操作:');
+    console.log('1. 重新部署Web应用');
+    console.log('2. 确保权限设置为"任何人"');
+    console.log('3. 使用新的部署URL');
+    console.log('4. 重新设置Webhook');
+  }
+  
+  return doPostOk && webAppOk;
+}
