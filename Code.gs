@@ -266,6 +266,11 @@ function setWebhook() {
   
   if (webAppUrl === 'YOUR_WEB_APP_URL_HERE') {
     console.error('❌ 请先设置 Web 应用 URL');
+    console.log('📝 步骤：');
+    console.log('1. 部署为Web应用');
+    console.log('2. 复制Web应用URL');
+    console.log('3. 替换此函数中的webAppUrl值');
+    console.log('4. 重新运行此函数');
     return;
   }
   
@@ -284,13 +289,88 @@ function setWebhook() {
     const response = UrlFetchApp.fetch(url, options);
     const result = JSON.parse(response.getContentText());
     
-    console.log('📋 Webhook 设置结果:', result);
+    console.log('📋 Webhook 设置结果:', JSON.stringify(result, null, 2));
+    
+    if (result.ok) {
+      console.log('✅ Webhook 设置成功！');
+      console.log('🔗 URL:', webAppUrl);
+      
+      // 立即验证Webhook状态
+      console.log('\n🔍 验证Webhook状态...');
+      setTimeout(() => {
+        testWebhookStatus();
+      }, 2000);
+      
+    } else {
+      console.log('❌ Webhook 设置失败');
+      console.log('错误信息:', result.description);
+    }
+    
     return result;
     
   } catch (error) {
     console.error('💥 设置 Webhook 错误:', error);
     return null;
   }
+}
+
+/**
+ * 删除现有Webhook（用于重置）
+ */
+function deleteWebhook() {
+  console.log('🗑️ 删除现有Webhook');
+  
+  try {
+    const url = `${TELEGRAM_API_URL}/deleteWebhook`;
+    
+    const options = {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    };
+    
+    const response = UrlFetchApp.fetch(url, options);
+    const result = JSON.parse(response.getContentText());
+    
+    console.log('📋 删除结果:', result);
+    
+    if (result.ok) {
+      console.log('✅ Webhook 删除成功');
+    } else {
+      console.log('❌ Webhook 删除失败:', result.description);
+    }
+    
+    return result;
+    
+  } catch (error) {
+    console.error('💥 删除 Webhook 错误:', error);
+    return null;
+  }
+}
+
+/**
+ * 修复Webhook问题的完整流程
+ */
+function fixWebhookIssue() {
+  console.log('🔧 开始修复Webhook问题');
+  
+  // 步骤1：删除现有Webhook
+  console.log('\n1️⃣ 删除现有Webhook');
+  deleteWebhook();
+  
+  // 步骤2：等待几秒
+  console.log('\n2️⃣ 等待清理完成...');
+  Utilities.sleep(3000);
+  
+  // 步骤3：检查当前状态
+  console.log('\n3️⃣ 检查当前状态');
+  testWebhookStatus();
+  
+  console.log('\n✅ 清理完成！');
+  console.log('📝 接下来请：');
+  console.log('1. 重新部署Web应用');
+  console.log('2. 复制新的Web应用URL');
+  console.log('3. 更新setWebhook函数中的URL');
+  console.log('4. 运行setWebhook()');
 }
 
 /**
