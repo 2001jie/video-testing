@@ -264,7 +264,7 @@ function fetchMovieInfo(movieId) {
 function setWebhook() {
   const webAppUrl = 'https://script.google.com/macros/s/AKfycbwGYTlUETIJrPFKBUTAnnIY_OXh6hhlsVQUWSoq4PphxuQkoOQgihdSoImVrZXdmChC/exec';
   
-  if (webAppUrl === 'YOUR_WEB_APP_URL_HERE') {
+  if (!webAppUrl || webAppUrl === 'YOUR_WEB_APP_URL_HERE') {
     console.error('❌ 请先设置 Web 应用 URL');
     console.log('📝 步骤：');
     console.log('1. 部署为Web应用');
@@ -405,7 +405,7 @@ function testWebAppAccess() {
   
   const webAppUrl = 'https://script.google.com/macros/s/AKfycbwGYTlUETIJrPFKBUTAnnIY_OXh6hhlsVQUWSoq4PphxuQkoOQgihdSoImVrZXdmChC/exec';
   
-  if (webAppUrl === 'YOUR_WEB_APP_URL_HERE') {
+  if (!webAppUrl || webAppUrl === 'YOUR_WEB_APP_URL_HERE') {
     console.error('❌ 请先设置Web应用URL');
     return false;
   }
