@@ -886,3 +886,151 @@ function ultimateDiagnosis() {
   
   return { getOk, postOk };
 }
+
+/**
+ * 测试消息发送功能
+ */
+function testMessageSendingWithYourBot() {
+  console.log('📤 测试消息发送功能');
+  
+  // 从Google Sheets获取最近的请求来测试
+  try {
+    const sheet = getOrCreateSheet();
+    if (!sheet) {
+      console.log('❌ 无法获取工作表');
+      return;
+    }
+    
+    const lastRow = sheet.getLastRow();
+    if (lastRow <= 1) {
+      console.log('📋 没有请求记录，无法测试');
+      return;
+    }
+    
+    // 获取最后一行数据
+    const lastRowData = sheet.getRange(lastRow, 1, 1, 9).getValues()[0];
+    const userId = lastRowData[4]; // E列：用户ID
+    const userName = lastRowData[5]; // F列：用户姓名
+    
+    console.log('👤 找到用户:', userName, '(', userId, ')');
+    
+    // 测试发送消息
+    const testMessage = `🧪 **测试消息**
+
+您好 ${userName}！
+
+这是一条测试消息，用于验证Bot是否能正常发送回复。
+
+如果您收到这条消息，说明Bot的消息发送功能正常！
+
+时间: ${new Date().toLocaleString('zh-CN')}`;
+    
+    console.log('📝 发送测试消息到:', userId);
+    const success = sendTelegramMessage(userId, testMessage);
+    
+    if (success) {
+      console.log('✅ 测试消息发送成功！');
+      console.log('🎯 Bot消息发送功能正常');
+    } else {
+      console.log('❌ 测试消息发送失败');
+      console.log('🔍 可能的问题：');
+      console.log('1. Bot Token配置错误');
+      console.log('2. 用户阻止了Bot');
+      console.log('3. Chat ID格式问题');
+    }
+    
+    return success;
+    
+  } catch (error) {
+    console.error('💥 测试消息发送错误:', error);
+    return false;
+  }
+}
+
+/**
+ * 检查最近的请求处理情况
+ */
+function checkRecentRequests() {
+  console.log('📋 检查最近的请求处理情况');
+  
+  try {
+    const sheet = getOrCreateSheet();
+    if (!sheet) return;
+    
+    const lastRow = sheet.getLastRow();
+    if (lastRow <= 1) {
+      console.log('📋 没有请求记录');
+      return;
+    }
+    
+    // 获取最后3行数据
+    const startRow = Math.max(2, lastRow - 2);
+    const numRows = lastRow - startRow + 1;
+    const recentData = sheet.getRange(startRow, 1, numRows, 9).getValues();
+    
+    console.log(`📊 最近 ${recentData.length} 个请求:`);
+    
+    recentData.forEach((row, index) => {
+      const requestId = row[0];
+      const title = row[2];
+      const userId = row[4];
+      const userName = row[5];
+      const requestTime = row[6];
+      const status = row[7];
+      
+      console.log(`${index + 1}. ${title}`);
+      console.log(`   用户: ${userName} (${userId})`);
+      console.log(`   时间: ${requestTime}`);
+      console.log(`   状态: ${status}`);
+      console.log('   ---');
+    });
+    
+    return recentData;
+    
+  } catch (error) {
+    console.error('💥 检查请求时发生错误:', error);
+    return [];
+  }
+}
+
+/**
+ * 完整的Bot功能测试
+ */
+function fullBotTest() {
+  console.log('🤖 完整Bot功能测试');
+  console.log('='.repeat(50));
+  
+  // 1. 检查配置
+  console.log('\n1️⃣ 检查配置');
+  const configOk = validateConfig();
+  
+  // 2. 测试Bot连接
+  console.log('\n2️⃣ 测试Bot连接');
+  const botOk = testBot();
+  
+  // 3. 检查Webhook状态
+  console.log('\n3️⃣ 检查Webhook状态');
+  testWebhookStatus();
+  
+  // 4. 检查最近请求
+  console.log('\n4️⃣ 检查最近请求');
+  checkRecentRequests();
+  
+  // 5. 测试消息发送
+  console.log('\n5️⃣ 测试消息发送');
+  const messageOk = testMessageSendingWithYourBot();
+  
+  console.log('\n' + '='.repeat(50));
+  console.log('📊 测试结果总结:');
+  console.log('配置:', configOk ? '✅' : '❌');
+  console.log('Bot连接:', (botOk && botOk.ok) ? '✅' : '❌');
+  console.log('消息发送:', messageOk ? '✅' : '❌');
+  
+  if (configOk && botOk && botOk.ok && !messageOk) {
+    console.log('\n🎯 问题分析: Bot能接收但不能发送消息');
+    console.log('可能原因:');
+    console.log('1. 用户没有先发送 /start 给Bot');
+    console.log('2. 用户阻止了Bot');
+    console.log('3. Chat ID保存格式问题');
+  }
+}
